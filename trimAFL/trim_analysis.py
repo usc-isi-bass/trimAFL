@@ -2,6 +2,16 @@ import r2pipe
 import logging
 l = logging.getLogger('trimAFL.analyses')
 
+def find_func_symbols(proj, sym):
+    candidates = []
+    for s in proj.loader.symbols:
+        if sym == s.name:
+            return [s]
+        if sym in s.name:
+            candidates.append(s)
+    return candidates
+
+
 def get_target_pred_succ_trim_nodes(proj, cfg, t_addr):
     t_node = None
     for node in cfg.graph.nodes():
@@ -66,7 +76,7 @@ def _insert_interrupt(r2, addr):
     rewrite0 = "w0 %s" % size
     r2.cmd(rewrite0)
 
-    rewrite = "wa int 0xf"
+    rewrite = "wa int 0x3"
     for i in range(to_pend):
         rewrite += ";nop"
 
