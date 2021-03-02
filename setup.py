@@ -19,9 +19,6 @@ setup(
     install_requires=[
         'argparse', 
         'angr', 
-        'bingraphvis', 
-        'flask', 
-        'cfg-explorer',
         'r2pipe'],
     description='trimAFL',
     long_description=long_description,
