@@ -12,18 +12,23 @@ def find_func_symbols(proj, sym):
     return candidates
 
 
-def get_target_pred_succ_trim_nodes(proj, cfg, t_addr):
+def _get_target_pred_succ_nodes(proj, cfg, t_addr, target_nodes, pred_nodes, succ_nodes):
     t_node = None
     for node in cfg.graph.nodes():
         if t_addr in node.instruction_addrs:
             t_node = node
             break
 
-    target_nodes = {}
+    if t_node is None:
+        return ()
+
+    if t_addr in target_nodes:
+        return ()
+
     target_nodes[t_node.addr] = t_node
+    l.info("Targeting 0x%08x in block 0x%08x" % (t_addr, t_node.addr))
 
     # Put all predessors into pred_nodes
-    pred_nodes = {}
     predecessors = t_node.predecessors
     while len(predecessors) != 0:
         new_predecessors = []
@@ -37,7 +42,6 @@ def get_target_pred_succ_trim_nodes(proj, cfg, t_addr):
         predecessors = new_predecessors
 
     # Put all successors into succ_nodes
-    succ_nodes = {}
     successors = t_node.successors
     while len(successors) != 0:
         new_successors = []
@@ -50,6 +54,10 @@ def get_target_pred_succ_trim_nodes(proj, cfg, t_addr):
                     new_successors.append(succ_node)
         successors = new_successors
 
+    return target_nodes, pred_nodes, succ_nodes
+
+
+def _get_trim_nodes(target_nodes, pred_nodes, succ_nodes):
     trim_nodes = {}
     pred_successors = set() 
     for node in pred_nodes.values():
@@ -61,6 +69,20 @@ def get_target_pred_succ_trim_nodes(proj, cfg, t_addr):
            addr not in target_nodes and \
            addr not in succ_nodes:
             trim_nodes[addr] = node
+
+    return trim_nodes
+
+
+def get_target_pred_succ_trim_nodes(proj, cfg, t_addrs):
+    pred_nodes = {}
+    succ_nodes = {}
+    target_nodes = {}
+    for t_addr in t_addrs:
+        ret = _get_target_pred_succ_nodes(proj, cfg, t_addr, target_nodes, pred_nodes, succ_nodes)
+        if len(ret) != 0:
+            target_blocks, pre_blocks, succ_blocks = ret
+
+    trim_nodes = _get_trim_nodes(target_nodes, pred_nodes, succ_nodes)
 
     return target_nodes, pred_nodes, succ_nodes, trim_nodes
 

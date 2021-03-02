@@ -1,5 +1,6 @@
 import logging
 logging.getLogger('angr.analyses').setLevel(logging.INFO)
+logging.getLogger('trimAFL').setLevel(logging.INFO)
 
 import os
 import angr
@@ -14,13 +15,20 @@ def main():
     parser = OptionParser(usage=usage)
     parser.add_option("-r", "--rewrite", dest="rewrite", action="store_true",
                       help="rewrite binary")
+    parser.add_option("-f", "--target-file", dest="use_file", action="store_true",
+                      help="import file for targets")
 
     (options, args) = parser.parse_args()
     if len(args) != 2 or not os.path.exists(args[0]):
         parser.error("Missing binary or target")
         exit(1)
 
-    proj = TrimAFL(args[0], args[1])
+    if options.use_file:
+        if not os.path.exists(args[1]):
+            parser.error("Missing file for targets")
+            exit(1)
+
+    proj = TrimAFL(args[0], args[1], options.use_file)
     if options.rewrite:
         proj.trim_binary()
     
