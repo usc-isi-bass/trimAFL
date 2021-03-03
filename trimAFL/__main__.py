@@ -1,5 +1,5 @@
 import logging
-logging.getLogger('angr.analyses').setLevel(logging.INFO)
+logging.getLogger('angr.analyses').setLevel(logging.WARNING)
 logging.getLogger('trimAFL').setLevel(logging.INFO)
 
 import os

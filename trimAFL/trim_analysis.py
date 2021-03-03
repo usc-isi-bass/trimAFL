@@ -87,13 +87,13 @@ def get_target_pred_succ_trim_nodes(proj, cfg, t_addrs):
     return target_nodes, pred_nodes, succ_nodes, trim_nodes
 
 
-def _insert_interrupt(r2, addr):
+def _insert_interrupt(r2, addr, cnt):
     r2.cmd('s ' + hex(addr))
     instr_data = r2.cmdj('pdj 1')[0]
     size = instr_data["size"]
     to_pend = size - 2
     if to_pend < 0:
-        return
+        return cnt
 
     rewrite0 = "w0 %s" % size
     r2.cmd(rewrite0)
@@ -104,11 +104,15 @@ def _insert_interrupt(r2, addr):
 
     l.info("Rewriting %s" % hex(addr))
     r2.cmd(rewrite)
+    cnt += 1 
+    return cnt
 
 
 def insert_interrupt(binary, trim_addrs):
     r2 = r2pipe.open(binary, flags=['-w'])
+    cnt = 0
     for addr in trim_addrs:
-        _insert_interrupt(r2, addr-0x400000)
+        cnt = _insert_interrupt(r2, addr-0x400000, cnt)
+    return cnt
 
 

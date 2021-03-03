@@ -7,7 +7,7 @@ class TrimAFL(object):
     def __init__(self, binary, target, use_file=False):
         self.binary = binary
         self.project = angr.Project(self.binary, load_options={'auto_load_libs': False})
-        self.cfg = self.project.analyses.CFGFast(fail_fast=False, normalize=True, show_progressbar=True,
+        self.cfg = self.project.analyses.CFGFast(fail_fast=False, normalize=True,
                                                  symbols=True, function_prologues=True, force_complete_scan=True,
                                                  collect_data_references=False, resolve_indirect_jumps=True)
 
@@ -27,6 +27,8 @@ class TrimAFL(object):
         if len(self.target_addrs) == 0:
             l.warn("No target found!")
 
+        self.trim_count = 0
+
 
     def _init_target(self, target):
         if target.startswith("0x"):
@@ -41,12 +43,14 @@ class TrimAFL(object):
 
     def _reload_proj_and_cfg(self):
         self.project = angr.Project(self.binary, load_options={'auto_load_libs': False})
-        self.cfg = self.project.analyses.CFGFast(fail_fast=False, normalize=True, show_progressbar=True,
+        self.cfg = self.project.analyses.CFGFast(fail_fast=False, normalize=True,
                                                  symbols=True, function_prologues=True, force_complete_scan=True,
                                                  collect_data_references=False, resolve_indirect_jumps=True)
 
 
     def trim_binary(self):
         target_blocks, pred_blocks, succ_blocks, trim_blocks = trim_analysis.get_target_pred_succ_trim_nodes(self.project, self.cfg, self.target_addrs)
-        trim_analysis.insert_interrupt(self.binary, trim_blocks.keys())
+        self.trim_count = trim_analysis.insert_interrupt(self.binary, trim_blocks.keys())
         self._reload_proj_and_cfg()
+        print("Trim-number: %s" % self.trim_count)
+
