@@ -36,8 +36,6 @@ def main():
         for addr in proj.target_addrs:
             print(search_node_by_addr(proj.project, proj.cfg, addr))
     
-            proj.do_sth(search_node_by_addr(proj.project, proj.cfg, addr))
-    
 
 if __name__ == '__main__':
     main()

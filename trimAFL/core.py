@@ -9,7 +9,7 @@ class TrimAFL(object):
         self.project = angr.Project(self.binary, load_options={'auto_load_libs': False})
         self.cfg = self.project.analyses.CFGFast(fail_fast=False, normalize=True,
                                                  symbols=True, function_prologues=True, force_complete_scan=True,
-                                                 collect_data_references=False, resolve_indirect_jumps=True)
+                                                 data_references=False, resolve_indirect_jumps=True)
         self.cg = self.cfg.functions.callgraph
 
         self.target_addrs = []
@@ -29,13 +29,6 @@ class TrimAFL(object):
             l.warn("No target found!")
 
         self.trim_count = 0
-
-
-    def do_sth(self, t_node):
-        pred_nodes = trim_analysis.new_get_target_pred_succ_nodes(t_node, self.cg)
-        print("---")
-        for node in pred_nodes.values():
-            print(node)
 
 
     def _init_target(self, target):
@@ -59,6 +52,6 @@ class TrimAFL(object):
     def trim_binary(self):
         target_blocks, pred_blocks, succ_blocks, trim_blocks = trim_analysis.get_target_pred_succ_trim_nodes(self.project, self.cfg, self.target_addrs)
         self.trim_count = trim_analysis.insert_interrupt(self.binary, trim_blocks.keys())
-        self._reload_proj_and_cfg()
+        # self._reload_proj_and_cfg()
         print("Trim-number: %s" % self.trim_count)
 

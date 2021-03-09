@@ -19,33 +19,7 @@ def search_node_by_addr(proj, cfg, t_addr):
             return node
 
 
-# Keys: predecessors' addresses
-# Values: this predecessor's children
-def get_cg_pred_sib_addrs(proj, cg, t_addr):
-    ret = {}
-    ret[t_addr] = []
-    new_preds = [addr for addr in cg.predecessors(t_addr)]
-
-    while len(new_preds) != 0:
-        addr = new_preds.pop()
-        if addr not in ret:
-            ret[addr] = [a for a in cg.successors(addr)]
-            new_preds += [a for a in cg.predecessors(addr)]
-    return ret
-
-
-def get_cg_succ_addrs(proj, cg, t_addr):
-    ret = [t_addr]
-    new_preds = [addr for addr in cg.successors(t_addr)]
-
-    while len(new_preds) != 0:
-        addr = new_preds.pop()
-        if addr not in ret:
-            ret.append(addr)
-            new_preds += [addr for addr in cg.successors(addr)]
-    return ret
-
-def _uptrace_node(t_node, cg, pred_nodes, ret_func_addr):
+def _uptrace_node(t_node, pred_nodes, ret_func_addr):
     if t_node.block is None:
         return pred_nodes, {}
     t_addr = t_node.block.addr
@@ -53,7 +27,7 @@ def _uptrace_node(t_node, cg, pred_nodes, ret_func_addr):
     new_predecessors = [t_node]
     while len(new_predecessors) != 0:
         pred = new_predecessors.pop()
-        if pred in pred_nodes:
+        if pred.block is None or pred in pred_nodes:
             continue
         else:
             pred_nodes[pred.block.addr] = pred
@@ -62,8 +36,7 @@ def _uptrace_node(t_node, cg, pred_nodes, ret_func_addr):
             if jumpkind == 'Ijk_Boring':
                 new_predecessors.append(next_node)
             elif jumpkind == 'Ijk_Ret':
-                new_pred_nodes, new_next_preds = _uptrace_node(next_node, cg, pred_nodes, pred.function_address)
-                pred_nodes.update(new_pred_nodes)
+                pred_nodes, new_next_preds = _uptrace_node(next_node, pred_nodes, pred.function_address)
                 new_predecessors += new_next_preds.values()
             elif jumpkind == 'Ijk_Call':
                 if next_node.function_address == ret_func_addr:
@@ -75,39 +48,94 @@ def _uptrace_node(t_node, cg, pred_nodes, ret_func_addr):
     return pred_nodes, next_preds
 
 
-def new_get_target_pred_succ_nodes(t_node, cg):
+def _downtrace_node(t_node, succ_nodes, ret_func_addr):
+    if t_node.block is None:
+        return succ_nodes, {}
     t_addr = t_node.block.addr
-    pred_nodes = {}
+    next_succs = {}
+    new_successors = [t_node]
+    while len(new_successors) != 0:
+        succ = new_successors.pop()
+        if succ.block is None or succ.block.addr in succ_nodes:
+            continue
+        else:
+            succ_nodes[succ.block.addr] = succ
+        for next_node, jumpkind in succ.successors_and_jumpkinds():
+            if jumpkind == 'Ijk_Boring':
+                new_successors.append(next_node)
+            elif jumpkind == 'Ijk_Ret':
+                if next_node.function_address == ret_func_addr:
+                    next_succs[next_node.block.addr] = next_node
+                else:
+                    continue
+            elif jumpkind == 'Ijk_Call':
+                succ_nodes, new_next_succs = _uptrace_node(next_node, succ_nodes, succ.function_address)
+                new_successors += new_next_succs.values()
+            else:
+                raise Exception("Unknown CFG edge kind")
+    return succ_nodes, next_succs
+
+
+
+def _get_target_pred_succ_nodes(proj, cfg, t_addr, target_nodes, pred_nodes, succ_nodes):
+    t_node = search_node_by_addr(proj, cfg, t_addr)
+    if t_node is None:
+        return ()
+    if t_addr in target_nodes:
+        return ()
+    target_nodes[t_node.addr] = t_node
+    l.info("Targeting 0x%08x in block 0x%08x" % (t_addr, t_node.addr))
+
+    # Put all predessors into pred_nodes
+    # With the notion of context sensitivity
     new_predecessors = [t_node]
     while len(new_predecessors) != 0:
         pred = new_predecessors.pop()
-        if pred.block.addr in pred_nodes:
+        if pred.block is None or pred.block.addr in pred_nodes:
             continue
         else:
             pred_nodes[pred.block.addr] = pred
-
         for next_node, jumpkind in pred.predecessors_and_jumpkinds():
             if jumpkind == 'Ijk_Boring':
                 new_predecessors.append(next_node)
             elif jumpkind == 'Ijk_Ret':
-                pred_nodes, next_preds = _uptrace_node(next_node, cg, pred_nodes, pred.function_address)
+                pred_nodes, next_preds = _uptrace_node(next_node, pred_nodes, pred.function_address)
                 new_predecessors += next_preds.values()
             elif jumpkind == 'Ijk_Call':
                 new_predecessors.append(next_node)
             else:
                 raise Exception("Unknown CFG edge kind")
-    return pred_nodes
+
+    # Put all successors into pred_nodes
+    new_successors = [t_node]
+    while len(new_successors) != 0:
+        succ = new_successors.pop()
+        if succ.block is None or succ.block.addr in succ_nodes:
+            continue
+        else:
+            succ_nodes[succ.block.addr] = succ
+        for next_node, jumpkind in succ.successors_and_jumpkinds():
+            if jumpkind == 'Ijk_Boring':
+                new_successors.append(next_node)
+            elif jumpkind == 'Ijk_Ret':
+                new_successors.append(next_node)
+            elif jumpkind == 'Ijk_Call':
+                succ_nodes, next_succs = _downtrace_node(next_node, succ_nodes, succ.function_address)
+                new_successors += next_succs.values()
+            else:
+                raise Exception("Unknown CFG edge kind")
+
+    trim_nodes = _get_trim_nodes(target_nodes, pred_nodes, succ_nodes)
+
+    return target_nodes, pred_nodes, succ_nodes
 
 
-def _get_target_pred_succ_nodes(proj, cfg, t_addr, target_nodes, pred_nodes, succ_nodes):
+def _old_get_target_pred_succ_nodes(proj, cfg, t_addr, target_nodes, pred_nodes, succ_nodes):
     t_node = search_node_by_addr(proj, cfg, t_addr)
-
     if t_node is None:
         return ()
-
     if t_addr in target_nodes:
         return ()
-
     target_nodes[t_node.addr] = t_node
     l.info("Targeting 0x%08x in block 0x%08x" % (t_addr, t_node.addr))
 
