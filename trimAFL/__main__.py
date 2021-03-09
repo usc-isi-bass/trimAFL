@@ -7,6 +7,7 @@ import angr
 from optparse import OptionParser
 
 from .core import TrimAFL
+from .trim_analysis import search_node_by_addr
 
 
 
@@ -31,6 +32,11 @@ def main():
     proj = TrimAFL(args[0], args[1], options.use_file)
     if options.rewrite:
         proj.trim_binary()
+    else:
+        for addr in proj.target_addrs:
+            print(search_node_by_addr(proj.project, proj.cfg, addr))
+    
+            proj.do_sth(search_node_by_addr(proj.project, proj.cfg, addr))
     
 
 if __name__ == '__main__':

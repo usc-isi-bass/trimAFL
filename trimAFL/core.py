@@ -10,6 +10,7 @@ class TrimAFL(object):
         self.cfg = self.project.analyses.CFGFast(fail_fast=False, normalize=True,
                                                  symbols=True, function_prologues=True, force_complete_scan=True,
                                                  collect_data_references=False, resolve_indirect_jumps=True)
+        self.cg = self.cfg.functions.callgraph
 
         self.target_addrs = []
 
@@ -28,6 +29,13 @@ class TrimAFL(object):
             l.warn("No target found!")
 
         self.trim_count = 0
+
+
+    def do_sth(self, t_node):
+        pred_nodes = trim_analysis.new_get_target_pred_succ_nodes(t_node, self.cg)
+        print("---")
+        for node in pred_nodes.values():
+            print(node)
 
 
     def _init_target(self, target):
