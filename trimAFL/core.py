@@ -8,11 +8,12 @@ class TrimAFL(object):
         self.binary = binary
         self.project = angr.Project(self.binary, load_options={'auto_load_libs': False})
         self.cfg = self.project.analyses.CFGFast(fail_fast=False, normalize=True,
-                                                 symbols=True, function_prologues=True, force_complete_scan=True,
+                                                 symbols=True, function_prologues=True, force_complete_scan=True, show_progressbar=True,
                                                  data_references=False, resolve_indirect_jumps=True)
-        self.cg = self.cfg.functions.callgraph
 
         self.target_addrs = []
+
+        l.info("CFG size: %s blocks" % len(self.cfg.model.nodes()))
 
         if use_file:
             targets = []

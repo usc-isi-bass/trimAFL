@@ -1,6 +1,7 @@
 import logging
 logging.getLogger('angr.analyses').setLevel(logging.WARNING)
-logging.getLogger('trimAFL').setLevel(logging.INFO)
+l = logging.getLogger('trimAFL.main')
+logging.getLogger('trimAFL').setLevel(logging.DEBUG)
 
 import os
 import angr
@@ -34,7 +35,7 @@ def main():
         proj.trim_binary()
     else:
         for addr in proj.target_addrs:
-            print(search_node_by_addr(proj.project, proj.cfg, addr))
+            l.info("0x%08x: %s" % (addr, search_node_by_addr(proj.project, proj.cfg, addr)))
     
 
 if __name__ == '__main__':
