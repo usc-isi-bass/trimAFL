@@ -24,29 +24,45 @@ def _uptrace_node(t_node, pred_connections, ret_func_addr=None, pre_pred=None):
     if t_node.block is None:
         return {}, {}
     t_addr = t_node.block.addr
+    # Predecessors collected from this function (including inner calls)
     pred_nodes = {}
+    # Predecessors calling this function, return to the caller(parent)
     next_preds = {}
-    new_predecessors = [t_node]
+    # Nodes to analyze later in the loop 
+    new_predecessors = set()
+    new_predecessors.add(t_node)
     while len(new_predecessors) != 0:
         pred = new_predecessors.pop()
-        if pred.block is None or pred in pred_nodes:
+        if pred.block is None or \
+           pred in pred_nodes:
             continue
         else:
             pred_nodes[pred.block.addr] = pred
         for next_node, jumpkind in pred.predecessors_and_jumpkinds():
+            if next_node.block is None:
+                continue
+            # Nodes inside this function, nothing special
             if jumpkind == 'Ijk_Boring':
-                new_predecessors.append(next_node)
+                if next_node not in new_predecessors and \
+                   next_node.block.addr not in pred_nodes:
+                    new_predecessors.add(next_node)
+            # Other function f returns here, indicates call by this function earlier
+            # Trace up to f,
+            #   continues with the returned next_preds (Nodes calling f)
             elif jumpkind == 'Ijk_Ret':
                 connection = (next_node.function_address, pred.function_address)
                 if connection in pred_connections:
                     continue
+                else:
+                    pred_connections.append(connection)
                 new_pred_nodes, new_next_preds = _uptrace_node(next_node, pred_connections, pred.function_address, pred)
-                new_predecessors += new_next_preds.values()
+                new_predecessors.update(new_next_preds.values())
                 pred_nodes.update(new_pred_nodes)
-                pred_connections.append(connection)
+            # Returning to the caller(parent) calling this function
+            # Only go back to THE caller (be context-sensitive)
             elif jumpkind == 'Ijk_Call':
                 if ret_func_addr is None:
-                    new_predecessors.append(next_node)
+                    new_predecessors.add(next_node)
                 else:
                     if next_node.function_address == ret_func_addr:
                         next_preds[next_node.block.addr] = next_node
@@ -54,13 +70,14 @@ def _uptrace_node(t_node, pred_connections, ret_func_addr=None, pre_pred=None):
                         continue
             else:
                 raise Exception("Unknown CFG edge kind")
+    l.debug("Finish %s\tfrom %s" % (t_node, pre_pred))
     return pred_nodes, next_preds
 
 
 def _downtrace_node(t_node, succ_connections, ret_func_addr=None, pre_pred=None):
     l.debug("Trace down %s\tfrom %s" % (t_node, pre_pred))
     if t_node.block is None:
-        return succ_nodes, {}
+        return {}, {}
     t_addr = t_node.block.addr
     succ_nodes = {}
     next_succs = {}
@@ -86,14 +103,14 @@ def _downtrace_node(t_node, succ_connections, ret_func_addr=None, pre_pred=None)
                 connection = (next_node.function_address, succ.function_address)
                 if connection in succ_connections:
                     continue
+                else:
+                    succ_connections.append(connection)
                 new_succ_nodes, new_next_succs = _downtrace_node(next_node, succ_connections, succ.function_address, succ)
                 new_successors += new_next_succs.values()
                 succ_nodes.update(new_succ_nodes)
-                succ_connections.append(connection)
             else:
                 raise Exception("Unknown CFG edge kind")
     return succ_nodes, next_succs
-
 
 
 def _get_target_pred_succ_nodes(proj, cfg, t_addr, target_nodes, pred_nodes, succ_nodes):
@@ -112,7 +129,8 @@ def _get_target_pred_succ_nodes(proj, cfg, t_addr, target_nodes, pred_nodes, suc
     new_pred_nodes,_ = _uptrace_node(t_node, pred_connections, None, None)
     pred_nodes.update(new_pred_nodes)
 
-    # Put all successors into pred_nodes
+    # Put all successors into succ_nodes
+    # Similiar implement as pred_nodes
     succ_connections = []
     l.info("Collecting Successors...")
     new_succ_nodes,_ = _downtrace_node(t_node, succ_connections, None, None)
