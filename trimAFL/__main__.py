@@ -15,6 +15,8 @@ from .trim_analysis import search_node_by_addr
 def main():
     usage = "usage: %prog [options] <binary> <target func/addr>"
     parser = OptionParser(usage=usage)
+    parser.add_option("-d", "--display-only", dest="display", action="store_true",
+                      help="display blocks to trim")
     parser.add_option("-r", "--rewrite", dest="rewrite", action="store_true",
                       help="rewrite binary")
     parser.add_option("-f", "--target-file", dest="use_file", action="store_true",
@@ -31,7 +33,11 @@ def main():
             exit(1)
 
     proj = TrimAFL(args[0], args[1], options.use_file)
-    if options.rewrite:
+    if options.display:
+        for addr in proj.target_addrs:
+            l.info("0x%08x: %s" % (addr, search_node_by_addr(proj.project, proj.cfg, addr)))
+        proj.demo()
+    elif options.rewrite:
         proj.trim_binary()
     else:
         for addr in proj.target_addrs:

@@ -50,8 +50,19 @@ class TrimAFL(object):
                                                  collect_data_references=False, resolve_indirect_jumps=True)
 
 
+    def demo(self):
+        target_blocks, pred_blocks, succ_blocks, trim_blocks = trim_analysis.get_target_pred_succ_trim_nodes(self.project, self.cfg, self.target_addrs)
+        print("Blocks to be trimmed:")
+        for addr, block in trim_blocks.items():
+            print(block)
+
+
     def trim_binary(self):
         target_blocks, pred_blocks, succ_blocks, trim_blocks = trim_analysis.get_target_pred_succ_trim_nodes(self.project, self.cfg, self.target_addrs)
+        l.info("----------- Blocks to be trimmed -----------")
+        for addr, block in trim_blocks.items():
+            l.info(block)
+        l.info("-----------    Start Trimming    -----------")
         self.trim_count = trim_analysis.insert_interrupt(self.binary, trim_blocks.keys())
         # self._reload_proj_and_cfg()
         print("Trim-number: %s" % self.trim_count)

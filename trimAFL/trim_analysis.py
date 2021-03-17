@@ -186,6 +186,10 @@ def _get_trim_nodes(target_nodes, pred_nodes, succ_nodes):
             pred_successors.add(succ_node)
     for node in pred_successors:
         addr = node.addr
+        # Ignore these blocks to make AFL run
+        if node.name is None or \
+           node.name.startswith("__afl"):
+            continue
         if addr not in pred_nodes and \
            addr not in target_nodes and \
            addr not in succ_nodes:
