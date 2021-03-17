@@ -237,7 +237,7 @@ def insert_interrupt(binary, trim_addrs):
     r2 = r2pipe.open(binary, flags=['-w'])
     cnt = 0
     for addr in trim_addrs:
-        cnt = _insert_interrupt(r2, addr-0x400000, cnt)
+        cnt = _insert_interrupt(r2, addr, cnt)
     return cnt
 
 

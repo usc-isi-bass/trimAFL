@@ -6,7 +6,7 @@ from . import trim_analysis
 class TrimAFL(object):
     def __init__(self, binary, target, use_file=False):
         self.binary = binary
-        self.project = angr.Project(self.binary, load_options={'auto_load_libs': False})
+        self.project = angr.Project(self.binary, load_options={'auto_load_libs': False, 'main_opts': {'base_addr': 0x0}})
         self.cfg = self.project.analyses.CFGFast(fail_fast=False, normalize=True,
                                                  symbols=True, function_prologues=True, force_complete_scan=True, show_progressbar=True,
                                                  data_references=False, resolve_indirect_jumps=True)
