@@ -66,4 +66,5 @@ class TrimAFL(object):
         self.trim_count = trim_analysis.insert_interrupt(self.binary, trim_blocks.keys())
         # self._reload_proj_and_cfg()
         print("Trim-number: %s" % self.trim_count)
+        return self.trim_count
 

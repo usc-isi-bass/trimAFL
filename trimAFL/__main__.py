@@ -4,7 +4,6 @@ l = logging.getLogger('trimAFL.main')
 logging.getLogger('trimAFL').setLevel(logging.DEBUG)
 
 import os
-import angr
 from optparse import OptionParser
 
 from .core import TrimAFL
