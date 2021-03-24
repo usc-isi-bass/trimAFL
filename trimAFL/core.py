@@ -12,6 +12,7 @@ class TrimAFL(object):
                                                  data_references=False, resolve_indirect_jumps=True)
 
         self.target_addrs = []
+        self.cg = self.cfg.functions.callgraph
 
         l.info("CFG size: %s blocks" % len(self.cfg.model.nodes()))
 
@@ -51,14 +52,14 @@ class TrimAFL(object):
 
 
     def demo(self):
-        target_blocks, pred_blocks, succ_blocks, trim_blocks = trim_analysis.get_target_pred_succ_trim_nodes(self.project, self.cfg, self.target_addrs)
+        target_blocks, pred_blocks, succ_blocks, trim_blocks = trim_analysis.get_target_pred_succ_trim_nodes(self.project, self.cfg, self.cg, self.target_addrs)
         print("Blocks to be trimmed:")
         for addr, block in trim_blocks.items():
             print(block)
 
 
     def trim_binary(self):
-        target_blocks, pred_blocks, succ_blocks, trim_blocks = trim_analysis.get_target_pred_succ_trim_nodes(self.project, self.cfg, self.target_addrs)
+        target_blocks, pred_blocks, succ_blocks, trim_blocks = trim_analysis.get_target_pred_succ_trim_nodes(self.project, self.cfg, self.cg, self.target_addrs)
         l.info("----------- Blocks to be trimmed -----------")
         for addr, block in trim_blocks.items():
             l.info(block)

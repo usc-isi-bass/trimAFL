@@ -1,7 +1,7 @@
 import logging
 logging.getLogger('angr.analyses').setLevel(logging.WARNING)
+logging.getLogger('trimAFL').setLevel(logging.INFO)
 l = logging.getLogger('trimAFL.main')
-logging.getLogger('trimAFL').setLevel(logging.DEBUG)
 
 import os
 from optparse import OptionParser
@@ -34,13 +34,13 @@ def main():
     proj = TrimAFL(args[0], args[1], options.use_file)
     if options.display:
         for addr in proj.target_addrs:
-            l.info("0x%08x: %s" % (addr, search_node_by_addr(proj.project, proj.cfg, addr)))
+            l.info("Target 0x%08x: %s" % (addr, search_node_by_addr(proj.project, proj.cfg, addr)))
         proj.demo()
     elif options.rewrite:
         proj.trim_binary()
     else:
         for addr in proj.target_addrs:
-            l.info("0x%08x: %s" % (addr, search_node_by_addr(proj.project, proj.cfg, addr)))
+            l.info("Target 0x%08x: %s" % (addr, search_node_by_addr(proj.project, proj.cfg, addr)))
     
 
 if __name__ == '__main__':
