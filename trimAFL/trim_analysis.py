@@ -62,7 +62,9 @@ def _new_uptrace_node(proj, cfg, t_node, pred_nodes, ret_func_addr=None, pre_pre
                     # node.block is None when calling linked lib (I guess)
                     _new_uptrace_node(proj, cfg, next_node, pred_nodes, pred.function_address, pred)
                 new_next_pred = search_node_by_addr(proj, cfg, pred.addr-5)
-                if new_next_pred is not None and new_next_pred not in pred_nodes:
+                if new_next_pred is not None and \
+                   new_next_pred.function_address == pred.function_address and \
+                   new_next_pred not in pred_nodes:
                     new_predecessors.add(new_next_pred)
             # Do nothing when returning to the caller function
             # Except if no ret_func_addr (Tracing from middle of the function, don't know
@@ -79,8 +81,8 @@ def _new_uptrace_node(proj, cfg, t_node, pred_nodes, ret_func_addr=None, pre_pre
     return pred_nodes
 
 
-def _new_downtrace_node(proj, cfg, t_node, succ_nodes, ret_func_addr=None, pre_succ=None):
-    l.debug("Trace up %s\tfrom %s" % (t_node, pre_succ))
+def _new_downtrace_node(proj, cfg, t_node, succ_nodes, cg_pred_addr_pairs, ret_func_addr=None, pre_succ=None):
+    l.debug("Trace down %s\tfrom %s" % (t_node, pre_succ))
     if t_node.block is None:
         return succ_nodes
     t_addr = t_node.block.addr
@@ -109,6 +111,13 @@ def _new_downtrace_node(proj, cfg, t_node, succ_nodes, ret_func_addr=None, pre_s
             elif jumpkind == 'Ijk_Ret':
                 if ret_func_addr is None:
                     new_successors.add(next_node)
+                    """
+                    for (pred_addr, succ_addr) in cg_pred_addr_pairs:
+                        if succ_addr == succ.function_address and \
+                           pred_addr == next_node.function_address:
+                            new_successors.add(next_node)
+                            break
+                    """
                 else:
                     continue
 
@@ -117,9 +126,11 @@ def _new_downtrace_node(proj, cfg, t_node, succ_nodes, ret_func_addr=None, pre_s
                 if next_node.block is not None:
                     # Trace down the function only if node.block is not None
                     # node.block is None when calling linked lib (I guess)
-                    _new_downtrace_node(proj, cfg, next_node, succ_nodes, succ.function_address, succ)
-                new_next_succ = search_node_by_addr(proj, cfg, succ.addr-5)
-                if new_next_succ is not None and new_next_succ not in succ_nodes:
+                    _new_downtrace_node(proj, cfg, next_node, succ_nodes, cg_pred_addr_pairs, succ.function_address, succ)
+                new_next_succ = search_node_by_addr(proj, cfg, succ.block.instruction_addrs[-1]+5)
+                if new_next_succ is not None and \
+                   new_next_succ.function_address == succ.function_address and \
+                   new_next_succ not in succ_nodes:
                     new_successors.add(new_next_succ)
 
             else:
@@ -246,24 +257,49 @@ def _uptrace_cg(cfg, cg, t_addr):
     return cg_pred_addrs
 
 
-def _get_target_pred_succ_nodes(proj, cfg, cg, t_addr, target_nodes, pred_nodes, succ_nodes):
+def _downtrace_cg(cfg, cg, t_addr):
+    cg_succ_addrs = []
+    next_addrs = [t_addr]
+    done_addrs = set()
+    while len(next_addrs) != 0:
+        addr = next_addrs.pop()
+        if addr in done_addrs:
+            continue
+        else:
+            done_addrs.add(addr)
+        for succ in cg.successors(addr):
+            node = cfg.model.get_node(succ)
+            pair = (addr, succ)
+            if pair in cg_succ_addrs:
+                continue
+            cg_succ_addrs.append(pair)
+            if succ not in done_addrs:
+                next_addrs.append(succ)
+    return cg_succ_addrs
+
+
+def _get_target_pred_succ_nodes(proj, cfg, cg, t_addr, target_nodes, pred_nodes, succ_nodes, pred_addr_pairs=None):
     t_node = search_node_by_addr(proj, cfg, t_addr)
     if t_node is None:
         return ()
     if t_addr in target_nodes:
         return ()
+
+    if pred_addr_pairs is None:
+        cg_pred_addr_pairs = _uptrace_cg(cfg, cg, t_addr)
+    else:
+        cg_pred_addr_pairs = pred_addr_pairs
+
     target_nodes[t_node.addr] = t_node
     l.info("Targeting 0x%08x in block 0x%08x" % (t_addr, t_node.addr))
 
     # Put all predessors into pred_nodes
     # With the notion of context sensitivity
-    pred_connections = []
     l.info("Collecting Predcessors...")
     #new_pred_nodes = _uptrace_node(proj, cfg, t_node, pred_connections, None, None)
-    _new_uptrace_node(proj, cfg, t_node, pred_nodes, None, None)
-
     # A list of pred-succ pair in function callgraph
-    cg_pred_addr_pairs = _uptrace_cg(cfg, cg, t_addr)
+    _new_uptrace_node(proj, cfg, t_node, pred_nodes, None)
+
     # TODO: 
     #   Currently assume the list is in order from target->entry
     #   Find the first pair with pred not in & succ in, trace up from there
@@ -277,13 +313,11 @@ def _get_target_pred_succ_nodes(proj, cfg, cg, t_addr, target_nodes, pred_nodes,
                     l.debug("Continue to uptrace from %s to %s" % (node, next_node))
                     _new_uptrace_node(proj, cfg, next_node, pred_nodes, None, node)
 
-
     # Put all successors into succ_nodes
     # Similiar implement as pred_nodes
-    succ_connections = []
     l.info("Collecting Successors...")
     #new_succ_nodes,_ = _downtrace_node(t_node, succ_connections, None, None)
-    _new_downtrace_node(proj, cfg, t_node, succ_nodes, None, None)
+    _new_downtrace_node(proj, cfg, t_node, succ_nodes, cg_pred_addr_pairs, None, None)
 
     return target_nodes, pred_nodes, succ_nodes
 
@@ -349,14 +383,12 @@ def _get_trim_nodes(target_nodes, pred_nodes, succ_nodes):
     return trim_nodes
 
 
-def get_target_pred_succ_trim_nodes(proj, cfg, cg, t_addrs):
+def get_target_pred_succ_trim_nodes(proj, cfg, cg, t_addrs, pred_addr_pairs=None):
     pred_nodes = {}
     succ_nodes = {}
     target_nodes = {}
     for t_addr in t_addrs:
-        ret = _get_target_pred_succ_nodes(proj, cfg, cg, t_addr, target_nodes, pred_nodes, succ_nodes)
-        if len(ret) != 0:
-            target_blocks, pre_blocks, succ_blocks = ret
+        ret = _get_target_pred_succ_nodes(proj, cfg, cg, t_addr, target_nodes, pred_nodes, succ_nodes, pred_addr_pairs)
 
     trim_nodes = _get_trim_nodes(target_nodes, pred_nodes, succ_nodes)
 
