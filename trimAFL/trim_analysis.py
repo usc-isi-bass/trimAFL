@@ -47,6 +47,17 @@ def _new_uptrace_node(proj, cfg, t_node, pred_nodes, ret_func_addr=None, pre_pre
             continue
         else:
             pred_nodes[pred.block.addr] = pred
+        # Special case for un-resolved function predecessors
+        # Jump directly to the predecessor ahead, if the predecessor ends with call
+        if len(pred.predecessors) == 0:
+            new_next_pred = search_node_by_addr(proj, cfg, pred.addr-5)
+            if new_next_pred is not None and \
+               new_next_pred.function_address == pred.function_address and \
+               new_next_pred not in pred_nodes:
+                _, jump_kind = new_next_pred.successors_and_jumpkinds()[0]
+                if jump_kind == "Ijk_Call":
+                    new_predecessors.add(new_next_pred)
+            continue
         for next_node, jumpkind in pred.predecessors_and_jumpkinds():
             # Nodes inside this function, nothing special
             if jumpkind == 'Ijk_Boring':
