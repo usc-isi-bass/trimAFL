@@ -7,7 +7,7 @@ log = logging.getLogger('trimAFL.cfg_patch')
 def get_blocks_with_tracer(cfg, binary, argv):
     r = tracer.qemu_runner.QEMURunner(binary, input=b'', argv=argv)
     block_trace = []
-    for addr in t.dynamic_trace():
+    for addr in r.trace:
         if r.rebase:
             new_addr = addr - r.base_addr
         node = cfg.model.get_node(new_addr)
@@ -37,7 +37,7 @@ def find_unresolved_callers(proj, cfg):
     return unresolved_callers
 
 
-def _replace_unresolved_callees(cfg, cg, caller, callee, ret_node):
+def _replace_unresolved_callees(proj, cfg, cg, caller, callee, ret_node):
     # Remove UnresolvableCallTarget, if still exists
     unresolve_node = None
     for node in caller.successors:
@@ -47,12 +47,15 @@ def _replace_unresolved_callees(cfg, cg, caller, callee, ret_node):
     if unresolve_node is not None:
         cfg.graph.remove_edge(caller, unresolve_node)
         cg.remove_edge(caller.function_address, unresolve_node.addr)
+        log.debug("Remove %s from %s" % (unresolve_node, caller))
     # Add the callee to cfg and cg
     cfg.graph.add_edge(caller, callee, jumpkind="Ijk_Call")
     cg.add_edge(caller.function_address, callee.function_address)
+    log.debug("Add %s to %s" % (callee, caller))
     # Bridge the returning node and the ret blocks of the called function
-    callee_end_nodes = find_function_end_nodes(callee)
+    callee_end_nodes = find_function_end_nodes(proj, cfg, callee)
     for node in callee_end_nodes:
+        log.debug("Ret %s to %s" % (callee, ret_node))
         cfg.graph.add_edge(node, ret_node, jumpkind="Ijk_Ret")
 
 
@@ -68,6 +71,6 @@ def patch_cfg_cg_with_blocktrace(proj, cfg, cg, unresolved_callers, block_trace)
             caller_idx += 1
             callee = block_trace[caller_idx]
             if (caller.addr, callee.addr) not in proceeded_addr_pairs:
-                _replace_unresolved_callees(cfg, cg, caller, callee, ret_node)
+                _replace_unresolved_callees(proj, cfg, cg, caller, callee, ret_node)
                 proceeded_addr_pairs.add((caller.addr, callee.addr))
 

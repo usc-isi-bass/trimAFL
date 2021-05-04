@@ -287,7 +287,7 @@ def _get_target_pred_succ_nodes(proj, cfg, cg, t_addr, target_nodes, pred_nodes,
         cg_pred_addr_pairs = pred_addr_pairs
 
     target_nodes[t_node.addr] = t_node
-    l.info("Targeting 0x%08x in block 0x%08x" % (t_addr, t_node.addr))
+    l.info("Targeting 0x%08x in block %s" % (t_addr, t_node))
 
     # Put all predessors into pred_nodes
     # With the notion of context sensitivity

@@ -15,13 +15,13 @@ def search_node_by_addr(proj, cfg, t_addr):
             return node
 
 
-def find_function_end_nodes(e_node):
+def find_function_end_nodes(proj, cfg, e_node):
     end_nodes = set()
     seen_nodes = set()
     new_successors = set()
     new_successors.add(e_node)
     cur_func_name = e_node.name
-    while len(new_predecessors) != 0:
+    while len(new_successors) != 0:
         succ = new_successors.pop()
         if succ in seen_nodes:
             continue
@@ -36,7 +36,7 @@ def find_function_end_nodes(e_node):
                 if next_node.block is None:
                     continue
                 if next_node not in new_successors and \
-                   next_node not in succ_nodes:
+                   next_node not in seen_nodes:
                     new_successors.add(next_node)
             elif jumpkind == 'Ijk_Ret':
                 end_nodes.add(next_node)
