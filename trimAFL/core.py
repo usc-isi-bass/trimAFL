@@ -2,6 +2,8 @@ import angr
 import logging
 l = logging.getLogger('trimAFL.core')
 from . import trim_analysis
+from .utils import *
+from . import cfg_patch
 
 class TrimAFL(object):
     def __init__(self, binary, target, use_file=False):
@@ -52,6 +54,9 @@ class TrimAFL(object):
 
 
     def demo(self):
+        unresolved_callers = cfg_patch.find_unresolved_callers(self.project, self.cfg)
+        block_trace = cfg_patch.get_blocks_with_tracer(self.cfg, self.binary, [self.binary, "CRASH_INPUT"])
+        cfg_patch.patch_cfg_cg_with_blocktrace(self.project, self.cfg, sefl.cg, unresolved_callers, block_trace)
         target_blocks, pred_blocks, succ_blocks, trim_blocks = trim_analysis.get_target_pred_succ_trim_nodes(self.project, self.cfg, self.cg, self.target_addrs)
         print("Blocks to be trimmed:")
         for addr, block in trim_blocks.items():

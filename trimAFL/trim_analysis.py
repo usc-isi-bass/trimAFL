@@ -1,5 +1,6 @@
 import r2pipe
 import logging
+from .utils import *
 l = logging.getLogger('trimAFL.analyses')
 
 FuncName_Blacklist = set(
@@ -14,22 +15,6 @@ FuncName_Blacklist = set(
      '__libc_start_main', 
      '__libc_csu_init'
     ])
-
-
-def find_func_symbols(proj, sym):
-    candidates = []
-    for s in proj.loader.symbols:
-        if sym == s.name:
-            return [s]
-        if sym in s.name:
-            candidates.append(s)
-    return candidates
-
-
-def search_node_by_addr(proj, cfg, t_addr):
-    for node in cfg.model.nodes():
-        if t_addr in node.instruction_addrs:
-            return node
 
 
 def _new_uptrace_node(proj, cfg, t_node, pred_nodes, ret_func_addr=None, pre_pred=None):
@@ -433,5 +418,3 @@ def insert_interrupt(binary, trim_addrs):
     for addr in trim_addrs:
         cnt = _insert_interrupt(r2, addr, cnt)
     return cnt
-
-
