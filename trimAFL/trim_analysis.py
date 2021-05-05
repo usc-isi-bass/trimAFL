@@ -17,7 +17,7 @@ FuncName_Blacklist = set(
     ])
 
 
-def _new_uptrace_node(proj, cfg, t_node, pred_nodes, ret_func_addr=None, pre_pred=None):
+def uptrace_node(proj, cfg, t_node, pred_nodes, ret_func_addr=None, pre_pred=None):
     l.debug("Trace up %s\tfrom %s" % (t_node, pre_pred))
     if t_node.block is None:
         return pred_nodes
@@ -56,7 +56,7 @@ def _new_uptrace_node(proj, cfg, t_node, pred_nodes, ret_func_addr=None, pre_pre
                 if next_node.block is not None:
                     # Trace up the function only if node.block is not None
                     # node.block is None when calling linked lib (I guess)
-                    _new_uptrace_node(proj, cfg, next_node, pred_nodes, pred.function_address, pred)
+                    uptrace_node(proj, cfg, next_node, pred_nodes, pred.function_address, pred)
                 new_next_pred = search_node_by_addr(proj, cfg, pred.addr-5)
                 if new_next_pred is not None and \
                    new_next_pred.function_address == pred.function_address and \
@@ -77,7 +77,7 @@ def _new_uptrace_node(proj, cfg, t_node, pred_nodes, ret_func_addr=None, pre_pre
     return pred_nodes
 
 
-def _new_downtrace_node(proj, cfg, t_node, succ_nodes, cg_pred_addr_pairs, ret_func_addr=None, pre_succ=None):
+def downtrace_node(proj, cfg, t_node, succ_nodes, cg_pred_addr_pairs, ret_func_addr=None, pre_succ=None):
     l.debug("Trace down %s\tfrom %s" % (t_node, pre_succ))
     if t_node.block is None:
         return succ_nodes
@@ -122,7 +122,7 @@ def _new_downtrace_node(proj, cfg, t_node, succ_nodes, cg_pred_addr_pairs, ret_f
                 if next_node.block is not None:
                     # Trace down the function only if node.block is not None
                     # node.block is None when calling linked lib (I guess)
-                    _new_downtrace_node(proj, cfg, next_node, succ_nodes, cg_pred_addr_pairs, succ.function_address, succ)
+                    downtrace_node(proj, cfg, next_node, succ_nodes, cg_pred_addr_pairs, succ.function_address, succ)
                 new_next_succ = search_node_by_addr(proj, cfg, succ.block.instruction_addrs[-1]+5)
                 if new_next_succ is not None and \
                    new_next_succ.function_address == succ.function_address and \
@@ -133,101 +133,6 @@ def _new_downtrace_node(proj, cfg, t_node, succ_nodes, cg_pred_addr_pairs, ret_f
                 raise Exception("Unknown CFG edge kind")
     l.debug("Finish %s\tfrom %s" % (t_node, pre_succ))
     return succ_nodes
-
-
-def _uptrace_node(t_node, pred_connections, ret_func_addr=None, pre_pred=None):
-    l.debug("Trace up %s\tfrom %s" % (t_node, pre_pred))
-    if t_node.block is None:
-        return {}, {}
-    t_addr = t_node.block.addr
-    # Predecessors collected from this function (including inner calls)
-    pred_nodes = {}
-    # Predecessors calling this function, return to the caller(parent)
-    next_preds = {}
-    # Nodes to analyze later in the loop 
-    new_predecessors = set()
-    new_predecessors.add(t_node)
-    while len(new_predecessors) != 0:
-        pred = new_predecessors.pop()
-        if pred.block is None or \
-           pred in pred_nodes:
-            continue
-        else:
-            pred_nodes[pred.block.addr] = pred
-
-        for next_node, jumpkind in pred.predecessors_and_jumpkinds():
-            if next_node.block is None:
-                continue
-            # Nodes inside this function, nothing special
-            if jumpkind == 'Ijk_Boring':
-                if next_node not in new_predecessors and \
-                   next_node.block.addr not in pred_nodes:
-                    new_predecessors.add(next_node)
-            # Other function f returns here, indicates call by this function earlier
-            # Trace up to f,
-            #   continues with the returned next_preds (Nodes calling f)
-            elif jumpkind == 'Ijk_Ret':
-                connection = (next_node.function_address, pred.function_address)
-                if connection in pred_connections:
-                    continue
-                else:
-                    pred_connections.append(connection)
-                new_pred_nodes, new_next_preds = _uptrace_node(next_node, pred_connections, pred.function_address, pred)
-                new_predecessors.update(new_next_preds.values())
-                pred_nodes.update(new_pred_nodes)
-            # Returning to the caller(parent) calling this function
-            # Only go back to THE caller (be context-sensitive)
-            elif jumpkind == 'Ijk_Call':
-                if ret_func_addr is None:
-                    new_predecessors.add(next_node)
-                else:
-                    if next_node.function_address == ret_func_addr:
-                        next_preds[next_node.block.addr] = next_node
-                    else:
-                        continue
-            else:
-                raise Exception("Unknown CFG edge kind")
-    l.debug("Finish %s\tfrom %s" % (t_node, pre_pred))
-    return pred_nodes, next_preds
-
-
-def _downtrace_node(t_node, succ_connections, ret_func_addr=None, pre_pred=None):
-    l.debug("Trace down %s\tfrom %s" % (t_node, pre_pred))
-    if t_node.block is None:
-        return {}, {}
-    t_addr = t_node.block.addr
-    succ_nodes = {}
-    next_succs = {}
-    new_successors = [t_node]
-    while len(new_successors) != 0:
-        succ = new_successors.pop()
-        if succ.block is None or succ.block.addr in succ_nodes:
-            continue
-        else:
-            succ_nodes[succ.block.addr] = succ
-        for next_node, jumpkind in succ.successors_and_jumpkinds():
-            if jumpkind == 'Ijk_Boring':
-                new_successors.append(next_node)
-            elif jumpkind == 'Ijk_Ret':
-                if ret_func_addr is None:
-                    new_successors.append(next_node)
-                else:
-                    if next_node.function_address == ret_func_addr:
-                        next_succs[next_node.block.addr] = next_node
-                    else:
-                        continue
-            elif jumpkind == 'Ijk_Call':
-                connection = (next_node.function_address, succ.function_address)
-                if connection in succ_connections:
-                    continue
-                else:
-                    succ_connections.append(connection)
-                new_succ_nodes, new_next_succs = _downtrace_node(next_node, succ_connections, succ.function_address, succ)
-                new_successors += new_next_succs.values()
-                succ_nodes.update(new_succ_nodes)
-            else:
-                raise Exception("Unknown CFG edge kind")
-    return succ_nodes, next_succs
 
 
 def _uptrace_cg(cfg, cg, t_addr):
@@ -281,6 +186,7 @@ def _get_target_pred_succ_nodes(proj, cfg, cg, t_addr, target_nodes, pred_nodes,
     if t_addr in target_nodes:
         return ()
 
+    # A list of pred-succ pair in function callgraph
     if pred_addr_pairs is None:
         cg_pred_addr_pairs = _uptrace_cg(cfg, cg, t_addr)
     else:
@@ -292,9 +198,7 @@ def _get_target_pred_succ_nodes(proj, cfg, cg, t_addr, target_nodes, pred_nodes,
     # Put all predessors into pred_nodes
     # With the notion of context sensitivity
     l.info("Collecting Predcessors...")
-    #new_pred_nodes = _uptrace_node(proj, cfg, t_node, pred_connections, None, None)
-    # A list of pred-succ pair in function callgraph
-    _new_uptrace_node(proj, cfg, t_node, pred_nodes, None)
+    uptrace_node(proj, cfg, t_node, pred_nodes, None, None)
 
     # TODO: 
     #   Currently assume the list is in order from target->entry
@@ -307,51 +211,12 @@ def _get_target_pred_succ_nodes(proj, cfg, cg, t_addr, target_nodes, pred_nodes,
             for next_node, jumpkind in node.predecessors_and_jumpkinds():
                 if jumpkind == 'Ijk_Call' and next_node.function_address == pred:
                     l.debug("Continue to uptrace from %s to %s" % (node, next_node))
-                    _new_uptrace_node(proj, cfg, next_node, pred_nodes, None, node)
+                    uptrace_node(proj, cfg, next_node, pred_nodes, None, node)
 
     # Put all successors into succ_nodes
     # Similiar implement as pred_nodes
     l.info("Collecting Successors...")
-    #new_succ_nodes,_ = _downtrace_node(t_node, succ_connections, None, None)
-    _new_downtrace_node(proj, cfg, t_node, succ_nodes, cg_pred_addr_pairs, None, None)
-
-    return target_nodes, pred_nodes, succ_nodes
-
-
-def _old_get_target_pred_succ_nodes(proj, cfg, t_addr, target_nodes, pred_nodes, succ_nodes):
-    t_node = search_node_by_addr(proj, cfg, t_addr)
-    if t_node is None:
-        return ()
-    if t_addr in target_nodes:
-        return ()
-    target_nodes[t_node.addr] = t_node
-    l.info("Targeting 0x%08x in block 0x%08x" % (t_addr, t_node.addr))
-
-    # Put all predessors into pred_nodes
-    predecessors = t_node.predecessors
-    while len(predecessors) != 0:
-        new_predecessors = []
-        for node in predecessors:
-            if node.block.addr in pred_nodes or node == t_node:
-                continue
-            pred_nodes[node.block.addr] = node
-            for pre_node in node.predecessors:
-                if pre_node.block is not None and pre_node.block.addr not in pred_nodes:
-                    new_predecessors.append(pre_node)
-        predecessors = new_predecessors
-
-    # Put all successors into succ_nodes
-    successors = t_node.successors
-    while len(successors) != 0:
-        new_successors = []
-        for node in successors:
-            if node.block.addr in succ_nodes:
-                continue
-            succ_nodes[node.block.addr] = node
-            for succ_node in node.successors:
-                if succ_node.block is not None and succ_node.block.addr not in succ_nodes:
-                    new_successors.append(succ_node)
-        successors = new_successors
+    downtrace_node(proj, cfg, t_node, succ_nodes, cg_pred_addr_pairs, None, None)
 
     return target_nodes, pred_nodes, succ_nodes
 
