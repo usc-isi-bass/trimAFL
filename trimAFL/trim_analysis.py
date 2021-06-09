@@ -35,7 +35,7 @@ def uptrace_node(proj, cfg, t_node, pred_nodes, ret_func_addr=None, pre_pred=Non
         # Special case for un-resolved function predecessors
         # Jump directly to the predecessor ahead, if the predecessor ends with call
         if len(pred.predecessors) == 0:
-            new_next_pred = search_node_by_addr(proj, cfg, pred.addr-5)
+            new_next_pred = search_node_by_addr(cfg, pred.addr-5)
             if new_next_pred is not None and \
                new_next_pred.function_address == pred.function_address and \
                new_next_pred not in pred_nodes:
@@ -57,7 +57,7 @@ def uptrace_node(proj, cfg, t_node, pred_nodes, ret_func_addr=None, pre_pred=Non
                     # Trace up the function only if node.block is not None
                     # node.block is None when calling linked lib (I guess)
                     uptrace_node(proj, cfg, next_node, pred_nodes, pred.function_address, pred)
-                new_next_pred = search_node_by_addr(proj, cfg, pred.addr-5)
+                new_next_pred = search_node_by_addr(cfg, pred.addr-5)
                 if new_next_pred is not None and \
                    new_next_pred.function_address == pred.function_address and \
                    new_next_pred not in pred_nodes:
@@ -123,7 +123,7 @@ def downtrace_node(proj, cfg, t_node, succ_nodes, cg_pred_addr_pairs, ret_func_a
                     # Trace down the function only if node.block is not None
                     # node.block is None when calling linked lib (I guess)
                     downtrace_node(proj, cfg, next_node, succ_nodes, cg_pred_addr_pairs, succ.function_address, succ)
-                new_next_succ = search_node_by_addr(proj, cfg, succ.block.instruction_addrs[-1]+5)
+                new_next_succ = search_node_by_addr(cfg, succ.block.instruction_addrs[-1]+5)
                 if new_next_succ is not None and \
                    new_next_succ.function_address == succ.function_address and \
                    new_next_succ not in succ_nodes:
@@ -180,7 +180,7 @@ def _downtrace_cg(cfg, cg, t_addr):
 
 
 def _get_target_pred_succ_nodes(proj, cfg, cg, t_addr, target_nodes, pred_nodes, succ_nodes, pred_addr_pairs=None):
-    t_node = search_node_by_addr(proj, cfg, t_addr)
+    t_node = search_node_by_addr(cfg, t_addr)
     if t_node is None:
         return ()
     if t_addr in target_nodes:

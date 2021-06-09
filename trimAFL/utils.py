@@ -9,10 +9,45 @@ def find_func_symbols(proj, sym):
     return candidates
 
 
-def search_node_by_addr(proj, cfg, t_addr):
+def search_node_by_addr(cfg, t_addr):
     for node in cfg.model.nodes():
-        if t_addr in node.instruction_addrs:
+        if node is not None and t_addr in node.instruction_addrs:
             return node
+
+
+# A more formal way of determining node reachablility
+def target_node_reachable(proj, cfg, entry_node, t_node, seen_nodes=set()):
+    new_successors = set()
+    new_successors.add(entry_node)
+    while len(new_successors) != 0:
+        succ = new_successors.pop()
+        if succ == t_node:
+            return True
+        if succ in seen_nodes:
+            continue
+        else:
+            seen_nodes.add(succ)
+        for next_node, jumpkind in succ.successors_and_jumpkinds():
+            if next_node == t_node:
+                return True
+            if jumpkind == 'Ijk_Boring':
+                if next_node not in new_successors and \
+                   next_node not in seen_nodes:
+                    new_successors.add(next_node)
+            elif jumpkind == 'Ijk_Ret':
+                continue
+            elif jumpkind == 'Ijk_Call':
+                ret = target_node_reachable(proj, cfg, next_node, t_node, seen_nodes)
+                if ret:
+                    return True
+                if succ.block is None:
+                    continue
+                new_next_succ = search_node_by_addr(cfg, succ.block.instruction_addrs[-1]+5)
+                if new_next_succ is not None and \
+                   new_next_succ.function_address == succ.function_address and \
+                   new_next_succ not in seen_nodes:
+                    new_successors.add(new_next_succ)
+    return False
 
 
 def find_function_end_nodes(proj, cfg, e_node):
@@ -28,10 +63,10 @@ def find_function_end_nodes(proj, cfg, e_node):
         else:
             seen_nodes.add(succ)
 
-        if len(succ.successors) == 0:
+        if len(cfg.model.get_successors(succ)) == 0:
             end_nodes.add(succ)
 
-        for next_node, jumpkind in succ.successors_and_jumpkinds():
+        for next_node, jumpkind in cfg.model.get_successors_and_jumpkinds(succ):
             if jumpkind == 'Ijk_Boring':
                 if next_node.block is None:
                     continue
@@ -41,7 +76,7 @@ def find_function_end_nodes(proj, cfg, e_node):
             elif jumpkind == 'Ijk_Ret':
                 end_nodes.add(next_node)
             elif jumpkind == 'Ijk_Call':
-                new_next_succ = search_node_by_addr(proj, cfg, succ.block.instruction_addrs[-1]+5)
+                new_next_succ = search_node_by_addr(cfg, succ.block.instruction_addrs[-1]+5)
                 if new_next_succ is not None and \
                    new_next_succ.function_address == succ.function_address and \
                    new_next_succ not in seen_nodes:
@@ -49,4 +84,6 @@ def find_function_end_nodes(proj, cfg, e_node):
             else:
                 raise Exception("Unknown CFG edge kind")
     return end_nodes
+
+# new playground
 

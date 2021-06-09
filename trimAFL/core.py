@@ -40,7 +40,7 @@ class TrimAFL(object):
             target_addr = int(target.split("0x", 1)[1], 16)
             self.target_addrs.append(target_addr)
         else:
-            t_symbols = trim_analysis.find_func_symbols(self.project, target)
+            t_symbols = find_func_symbols(self.project, target)
             if len(t_symbols) == 0:
                 return
             self.target_addrs += [symbol.rebased_addr for symbol in t_symbols]
@@ -54,10 +54,14 @@ class TrimAFL(object):
 
 
     def demo(self):
-        unresolved_callers = cfg_patch.find_unresolved_callers(self.project, self.cfg)
-        block_trace = cfg_patch.get_blocks_with_tracer(self.cfg, self.binary, [self.binary, "CRASH_INPUT"])
-        cfg_patch.patch_cfg_cg_with_blocktrace(self.project, self.cfg, self.cg, unresolved_callers, block_trace)
+        t_node = search_node_by_addr(self.cfg, self.target_addrs[0])
+        e_node = self.cfg.model.get_node(self.project.entry)
+
         target_blocks, pred_blocks, succ_blocks, trim_blocks = trim_analysis.get_target_pred_succ_trim_nodes(self.project, self.cfg, self.cg, self.target_addrs)
+
+        for b in pred_blocks.values():
+            if len(b.successors) > 1:
+                print(b)
         print("Blocks to be trimmed:")
         for addr, block in trim_blocks.items():
             print(block)
