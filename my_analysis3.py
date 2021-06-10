@@ -16,10 +16,9 @@ import tracer
 
 
 
-base_dir = "/home/weicheng/directed_fuzzer/magma_tar/afl-libtiff-tiff_read_rgba_fuzzer/"
+r_path_dir = "/home/weicheng/directed_fuzzer/trimafl/analysis_results/reach_paths/PixarLogDecode/all_inputs/"
 binary = "./analysis_results/tiff_read_rgba_fuzzer"
 target = "PixarLogDecode"
-reach_input = "./analysis_results/reach_paths/PixarLogDecode/input"
 other_input = "./analysis_results/reach_paths/LZWDecode/input"
 
 trim_proj = TrimAFL(binary, target, False)
@@ -28,32 +27,44 @@ proj = trim_proj.project
 cfg = trim_proj.cfg
 cg = trim_proj.cg
 
-reach_trace = cfg_patch.get_blocks_with_tracer(proj, cfg, binary, reach_input)
-reach_set = set(block.addr for block in reach_trace if block is not None)
-reach_func_set = set(block.function_address for block in reach_trace if block is not None and block.function_address is not None)
-
-# Complete a cfg with the reach_trace
-# record all patched unresolvable caller
-# Check the difference resolving blocks in other_trace
 cfg_r = cfg.copy()
 cg_r= cg.copy()
 
 unreachable_callers = cfg_patch.find_unresolved_callers(proj, cfg_r)
 
-patch_edges = {}
+# key: caller_addr
+# value: set of callee_addr
+edges_to_patch = {}
 for caller in unreachable_callers:
-    if caller not in reach_trace:
-        continue
-    caller_idx = 0
-    callee_addresses = set()
-    for i in range(reach_trace.count(caller)):
-        caller_idx = reach_trace.index(caller, caller_idx)
-        caller_idx += 1
-        callee = reach_trace[caller_idx]
-        callee_addresses.add(callee.addr)
-    patch_edges[caller.addr] = callee_addresses
+    edges_to_patch[caller.addr] = set()
 
-cfg_patch.patch_cfg_cg_with_caller_dict(proj, cfg_r, cg_r, patch_edges)
+
+reach_set = set()
+reach_func_set = set()
+
+interesting_parent = set()
+for f in os.listdir(r_path_dir):
+    in_f = "%s/%s" % (r_path_dir, f)
+    reach_trace = cfg_patch.get_blocks_with_tracer(proj, cfg_r, binary, in_f)
+    for block in reach_trace:
+        if block is not None:
+            reach_set.add(block.addr)
+            if block.function_address is not None:
+                reach_func_set.add(block.function_address)
+
+    for caller in unreachable_callers:
+        caller_idx = 0
+        for i in range(reach_trace.count(caller)):
+            caller_idx = reach_trace.index(caller, caller_idx)
+            caller_idx += 1
+            callee = reach_trace[caller_idx]
+            if callee.name == target:
+                interesting_parent.add(caller)
+            if callee is not None:
+                edges_to_patch[caller.addr].add(callee.addr)
+
+
+cfg_patch.patch_cfg_cg_with_caller_dict(proj, cfg_r, cg_r, edges_to_patch)
 
 ep_node = cfg_r.model.get_any_node(proj.entry)
 
@@ -62,8 +73,20 @@ for node in cfg_r.model.nodes():
     if node is None:
         continue
     if node.name == target:
+        print("--------")
         print("CFG reachable: %s" % has_path(cfg_r.graph, ep_node, node))
         print("CG  reachable: %s" % has_path(cg_r, proj.entry, node.addr))
+        print("--------")
+        print("Parents:")
+        for node in interesting_parent:
+            print(node.name)
+            for s in cfg_r.model.get_successors(node):
+                print("  " + s.name)
+            print("")
+
+print("")
+print("==================")
+print("")
 
 
 # Then, we look at the other trace

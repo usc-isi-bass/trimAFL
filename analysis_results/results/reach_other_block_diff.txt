@@ -1,37 +1,89 @@
-#!/usr/bin/env python3
+Diff loaded blocks:
+TIFFInitLZW
+LZWSetupDecode
+LZWPreDecode
+LZWDecode
+putRGBcontig8bittile
 
-import logging
-logging.getLogger('angr').setLevel(logging.ERROR)
-logging.getLogger('tracer').setLevel(logging.ERROR)
-logging.getLogger('pyvex').setLevel(logging.ERROR)
-logging.getLogger('trimAFL').setLevel(logging.WARNING)
-logging.getLogger('trimAFL.cfg_patch').setLevel(logging.INFO)
+========
 
-import sys
-import os
+Diff infunc blocks:
+TIFFReadDirectoryCheckOrder+0xab
+TIFFReadDirectoryCheckOrder+0xdf
+TIFFReadDirEntryShort+0x61
+TIFFReadDirectory+0x16c6
+TIFFReadDirectory+0x16e7
+TIFFReadDirectory+0x1eb7
+TIFFReadDirectory+0x140c
+TIFFReadDirectory+0x221d
+TIFFReadDirectory+0x224e
+TIFFReadDirectory+0x29fe
+TIFFReadDirectory+0x3209
+TIFFReadDirectory+0x3227
+TIFFReadDirectory+0x324c
+TIFFScanlineSize64+0x13a
+TIFFScanlineSize64+0x166
+TIFFScanlineSize64+0x17b
+TIFFStripSize+0x6b
+TIFFVStripSize64+0x142
+TIFFVStripSize64+0x160
+TIFFVStripSize64+0x173
+TIFFVTileSize64+0x17b
+TIFFVTileSize64+0x19a
+TIFFVTileSize64+0x1ad
+TIFFRGBAImageOK+0x456
+TIFFRGBAImageBegin+0x724
+TIFFRGBAImageBegin+0xfdc
+TIFFRGBAImageBegin+0x100d
+TIFFRGBAImageBegin+0x1017
+TIFFRGBAImageBegin+0x1690
+TIFFRGBAImageBegin+0x18d1
+TIFFRGBAImageBegin+0x18ef
+gtStripContig+0x380
+TIFFReadEncodedStripGetStripSize+0xc0
+TIFFReadEncodedStripGetStripSize+0x159
+_TIFFReadEncodedStripAndAllocBuffer+0x4e
+TIFFStartStrip+0x8a
+_TIFFReadEncodedStripAndAllocBuffer+0x6b
+TIFFRGBAImageEnd+0x153
 
-from trimAFL import trim_analysis, cfg_patch
-from trimAFL.core import * 
-import tracer
+========
 
+Diff other blocks:
+LZWFixupTags
+TIFFTileRowSize64
+TIFFTileRowSize64+0x3d
+TIFFTileRowSize64+0x5f
+TIFFTileRowSize64+0x7f
+TIFFTileRowSize64+0x89
+TIFFTileRowSize64+0xbe
+TIFFTileRowSize64+0xdd
+TIFFTileRowSize64+0x114
+TIFFTileRowSize64+0x1c1
+TIFFReadEncodedStrip
+TIFFReadEncodedStrip+0x47
+TIFFReadEncodedStrip+0x60
+TIFFReadEncodedStrip+0x82
+TIFFReadEncodedStrip+0x1da
+TIFFReadEncodedStrip+0x1f4
+TIFFReadEncodedStrip+0x253
+TIFFReadEncodedStrip+0x272
+TIFFReadEncodedStrip+0x282
+TIFFReadEncodedStrip+0x2ab
+TIFFReadEncodedStrip+0x2f7
+LZWCleanup
+LZWCleanup+0x30
+LZWCleanup+0x4b
+LZWCleanup+0x6a
+LZWCleanup+0x85
+LZWCleanup+0x96
+LZWCleanup+0xe3
+LZWCleanup+0x107
 
+========
 
-base_dir = "/home/weicheng/directed_fuzzer/magma_tar/afl-libtiff-tiff_read_rgba_fuzzer/"
-binary = "./analysis_results/tiff_read_rgba_fuzzer"
-target = "PixarLogDecode"
-reach_input = "./analysis_results/reach_paths/PixarLogDecode/input"
-other_input = "./analysis_results/reach_paths/LZWDecode/input"
-
-trim_proj = TrimAFL(binary, target, False)
-
-proj = trim_proj.project
-cfg = trim_proj.cfg
-cg = trim_proj.cg
-
-reach_trace = cfg_patch.get_blocks_with_tracer(proj, cfg, binary, reach_input)
-reach_set = set(block.addr for block in reach_trace if block is not None)
-reach_func_set = set(block.function_address for block in reach_trace if block is not None and block.function_address is not None)
-
+# Script
+```
 # Complete a cfg with the reach_trace
 # record all patched unresolvable caller
 # Check the difference resolving blocks in other_trace
@@ -112,3 +164,4 @@ for block in diff_unknown_blocks:
     print(block.name)
 
 print("\n========\n")
+```

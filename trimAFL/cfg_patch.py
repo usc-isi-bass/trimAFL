@@ -34,8 +34,7 @@ def find_unresolved_callers(proj, cfg):
         successors = cfg.model.get_successors(node)
         if len(successors) == 1 and \
            successors[0].name == "UnresolvableCallTarget" and \
-           node.name is not None and not node.name.startswith("_"):
-            # TODO: is there a better way of blacklisting?
+           node.name is not None:
             unresolved_callers.add(node)
             log.debug("Unresolvable call in %s" % node)
     return unresolved_callers
@@ -101,8 +100,8 @@ def find_reachable_unresolved_callers(proj, cfg, cg):
     return unresolved_callers
 
 
-def patch_cfg_cg_with_caller_dict(proj, cfg, cg, edge_dict):
-    for caller_addr, callees in edge_dict.items():
+def patch_cfg_cg_with_caller_dict(proj, cfg, cg, edge_addr_dict):
+    for caller_addr, callee_addrs in edge_addr_dict.items():
         caller = cfg.model.get_any_node(caller_addr)
         ret_node = search_node_by_addr(cfg, caller.block.instruction_addrs[-1]+5)
         # Remove UnresolvableCallTarget, if still exists
@@ -118,7 +117,7 @@ def patch_cfg_cg_with_caller_dict(proj, cfg, cg, edge_dict):
                 cg.remove_edge(caller.function_address, unresolve_node.addr)
             log.debug("Remove %s from %s" % (unresolve_node, caller))
 
-        for callee_addr in callees:
+        for callee_addr in callee_addrs:
             callee = cfg.model.get_any_node(callee_addr)
             _add_callee(proj, cfg, cg, caller, callee, ret_node)
 
@@ -133,4 +132,8 @@ def _add_callee(proj, cfg, cg, caller, callee, ret_node):
     for node in callee_end_nodes:
         log.debug("Ret %s to %s" % (callee, ret_node))
         cfg.graph.add_edge(node, ret_node, jumpkind="Ijk_Ret")
+
+
+def find_calleeaddrs_from_trace(caller_block, trace):
+    pass
 

@@ -35,7 +35,7 @@ True
 False
 
 PixarLogDecode
-False
+True
 False
 
 deregister_tm_clones
@@ -43,7 +43,7 @@ False
 False
 
 register_tm_clones
-False
+True
 False
 
 PixarLogVSetField
@@ -51,7 +51,7 @@ True
 False
 
 frame_dummy
-False
+True
 False
 
 handle_error
@@ -89,14 +89,6 @@ False
 
 # Script
 ```
-reach_trace = cfg_patch.get_blocks_with_tracer(proj, cfg, binary, reach_input)
-reach_set = set(block.addr for block in reach_trace if block is not None)
-
-#other_trace = get_blocks_with_tracer(proj, cfg, binary, other_input)
-
-# Complete a cfg with the reach_trace
-# record all patched unresolvable caller
-# Check the difference resolving blocks in other_trace
 cfg_r = cfg.copy()
 cg_r= cg.copy()
 
