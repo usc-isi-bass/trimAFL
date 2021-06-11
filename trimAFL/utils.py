@@ -1,10 +1,26 @@
 
 def find_func_symbols(proj, sym):
+    if sym.count("::") == 1:
+        classname, funcname = sym.split("::")
+        return find_cpp_func_symbols(proj, classname, funcname)
     candidates = []
     for s in proj.loader.symbols:
         if sym == s.name:
             return [s]
         if sym in s.name:
+            candidates.append(s)
+    return candidates
+
+def find_cpp_func_symbols(proj, classname, funcname):
+    candidates = []
+    for s in proj.loader.symbols:
+        if classname in s.name and \
+           funcname in s.name:
+            name = s.name
+            found = name.find(classname)
+            if name[found-1].isdigit() and \
+               name[found+len(classname)].isdigit():
+                return [s]
             candidates.append(s)
     return candidates
 
