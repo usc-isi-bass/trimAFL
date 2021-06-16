@@ -14,6 +14,12 @@ def find_func_symbols(proj, sym):
 def find_cpp_func_symbols(proj, classname, funcname):
     candidates = []
     for s in proj.loader.symbols:
+        if classname == funcname:
+            name = s.name
+            if name.count(classname) == 2:
+                return [s]
+            else:
+                continue
         if classname in s.name and \
            funcname in s.name:
             name = s.name
