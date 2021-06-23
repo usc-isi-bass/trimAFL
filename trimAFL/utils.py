@@ -37,6 +37,31 @@ def search_node_by_addr(cfg, t_addr):
             return node
 
 
+# Return the node before cur_node_addr
+#   search for the caller node of this ret node
+def search_pre_node(cfg, cur_node):
+    cur_node_addr = cur_node.addr
+    for i in range(4, 10):
+        pred = search_node_by_addr(cfg, cur_node_addr - i)
+        if pred is not None:
+            return pred
+    return None
+
+
+# Return the next node after cur_node_addr
+#   search for the ret node of this caller node
+def search_next_node(cfg, cur_node):
+    if cur_node.block is None:
+        return None
+    cur_block_size = cur_node.block.size
+    next_node_addr = cur_node.addr + cur_block_size
+    for i in range(5):
+        succ = search_node_by_addr(cfg, next_node_addr + i)
+        if succ is not None:
+            return succ
+    return None
+
+
 # A more formal way of determining node reachablility
 def target_node_reachable(proj, cfg, entry_node, t_node, seen_nodes=set()):
     new_successors = set()

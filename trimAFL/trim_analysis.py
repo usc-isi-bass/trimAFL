@@ -16,6 +16,11 @@ FuncName_Blacklist = set(
      '__libc_csu_init'
     ])
 
+NOTRIM_NODES = [
+    "magma_log",
+    "__afl"
+]
+
 
 def uptrace_node(proj, cfg, t_node, pred_nodes, ret_func_addr=None, pre_pred=None):
     l.debug("Trace up %s\tfrom %s" % (t_node, pre_pred))
@@ -36,7 +41,7 @@ def uptrace_node(proj, cfg, t_node, pred_nodes, ret_func_addr=None, pre_pred=Non
         # Jump directly to the predecessor ahead, if the predecessor ends with call
         cur_predecessors = list(cfg.model.get_predecessors(pred))
         if len(cur_predecessors) == 0:
-            new_next_pred = search_node_by_addr(cfg, pred.addr-5)
+            new_next_pred = search_pre_node(cfg, pred)
             if new_next_pred is not None and \
                new_next_pred.function_address == pred.function_address and \
                new_next_pred.addr not in pred_nodes:
@@ -58,7 +63,7 @@ def uptrace_node(proj, cfg, t_node, pred_nodes, ret_func_addr=None, pre_pred=Non
                     # Trace up the function only if node.block is not None
                     # node.block is None when calling linked lib (I guess)
                     uptrace_node(proj, cfg, next_node, pred_nodes, pred.function_address, pred)
-                new_next_pred = search_node_by_addr(cfg, pred.addr-5)
+                new_next_pred = search_pre_node(cfg, pred)
                 if new_next_pred is not None and \
                    new_next_pred.function_address == pred.function_address and \
                    new_next_pred.addr not in pred_nodes:
@@ -124,7 +129,7 @@ def downtrace_node(proj, cfg, t_node, succ_nodes, cg_pred_addr_pairs, ret_func_a
                     # Trace down the function only if node.block is not None
                     # node.block is None when calling linked lib (I guess)
                     downtrace_node(proj, cfg, next_node, succ_nodes, cg_pred_addr_pairs, succ.function_address, succ)
-                new_next_succ = search_node_by_addr(cfg, succ.block.instruction_addrs[-1]+5)
+                new_next_succ = search_next_node(cfg, succ)
                 if new_next_succ is not None and \
                    new_next_succ.function_address == succ.function_address and \
                    new_next_succ.addr not in succ_nodes:
@@ -222,6 +227,13 @@ def _get_target_pred_succ_nodes(proj, cfg, cg, t_addr, target_nodes, pred_nodes,
     return target_nodes, pred_nodes, succ_nodes
 
 
+def _name_no_trim(name):
+    for n in NOTRIM_NODES:
+        if n in name:
+            return True
+    return False
+
+
 def _get_trim_nodes(target_nodes, pred_nodes, succ_nodes):
     l.info("Filtering out trim-nodes...")
     trim_nodes = {}
@@ -235,7 +247,7 @@ def _get_trim_nodes(target_nodes, pred_nodes, succ_nodes):
         # Ignore these blocks to make AFL run
         if node.name is None or \
            node.block is None or \
-           node.name.startswith("__afl"):
+           _name_no_trim(node.name):
             continue
         if addr not in pred_nodes and \
            addr not in target_nodes and \

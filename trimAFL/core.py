@@ -59,9 +59,11 @@ class TrimAFL(object):
 
         target_blocks, pred_blocks, succ_blocks, trim_blocks = trim_analysis.get_target_pred_succ_trim_nodes(self.project, self.cfg, self.cg, self.target_addrs)
 
+        """
         for b in pred_blocks.values():
             if len(b.successors) > 1:
                 print(b)
+        """
         print("Blocks to be trimmed:")
         for addr, block in trim_blocks.items():
             print(block)
