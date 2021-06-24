@@ -20,6 +20,8 @@ def main():
                       help="rewrite binary")
     parser.add_option("-f", "--target-file", dest="use_file", action="store_true",
                       help="import file for targets")
+    parser.add_option("-s", "--seed_dir", dest="seed_dir", action="store",
+                      help="Patch cfg with seed before analysis")
 
     (options, args) = parser.parse_args()
     if len(args) != 2 or not os.path.exists(args[0]):
@@ -32,6 +34,12 @@ def main():
             exit(1)
 
     proj = TrimAFL(args[0], args[1], options.use_file)
+
+    if options.seed_dir is not None:
+        cfg, cg = proj.new_cfg_cg_with_seeds(options.seed_dir)
+        proj.trim_binary(cfg, cg)
+        exit(0)
+
     if options.display:
         for addr in proj.target_addrs:
             l.info("Target 0x%08x: %s" % (addr, search_node_by_addr(proj.cfg, addr)))

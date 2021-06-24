@@ -59,7 +59,7 @@ def uptrace_node(proj, cfg, t_node, pred_nodes, ret_func_addr=None, pre_pred=Non
             # Trace up to f,
             #   Determine the block calling f by Ret-block.addr - 5
             elif jumpkind == 'Ijk_Ret':
-                if next_node.block is not None:
+                if next_node is not None and next_node.block is not None:
                     # Trace up the function only if node.block is not None
                     # node.block is None when calling linked lib (I guess)
                     uptrace_node(proj, cfg, next_node, pred_nodes, pred.function_address, pred)
@@ -125,7 +125,7 @@ def downtrace_node(proj, cfg, t_node, succ_nodes, cg_pred_addr_pairs, ret_func_a
 
             # Determine the returning block Call-block.addr + 5
             elif jumpkind == 'Ijk_Call':
-                if next_node.block is not None:
+                if next_node is not None and next_node.block is not None:
                     # Trace down the function only if node.block is not None
                     # node.block is None when calling linked lib (I guess)
                     downtrace_node(proj, cfg, next_node, succ_nodes, cg_pred_addr_pairs, succ.function_address, succ)

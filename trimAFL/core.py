@@ -1,4 +1,5 @@
 import angr
+import os
 import logging
 l = logging.getLogger('trimAFL.core')
 from . import trim_analysis
@@ -69,8 +70,11 @@ class TrimAFL(object):
             print(block)
 
 
-    def trim_binary(self):
-        target_blocks, pred_blocks, succ_blocks, trim_blocks = trim_analysis.get_target_pred_succ_trim_nodes(self.project, self.cfg, self.cg, self.target_addrs)
+    def trim_binary(self, cfg=None, cg=None):
+        if cfg is None or cg is None:
+            cfg = self.cfg
+            cg = self.cg
+        target_blocks, pred_blocks, succ_blocks, trim_blocks = trim_analysis.get_target_pred_succ_trim_nodes(self.project, cfg, cg, self.target_addrs)
         l.info("----------- Blocks to be trimmed -----------")
         for addr, block in trim_blocks.items():
             l.info(block)
@@ -79,4 +83,31 @@ class TrimAFL(object):
         # self._reload_proj_and_cfg()
         print("Trim-number: %s" % self.trim_count)
         return self.trim_count
+
+
+    def new_cfg_cg_with_seeds(self, seed_dir):
+        cfg_r = self.cfg.copy()
+        cg_r= self.cg.copy()
+
+        unreachable_callers = cfg_patch.find_unresolved_callers(self.project, cfg_r)
+        patch_edges = {}
+
+        for f in os.listdir(seed_dir):
+            input_f = "%s/%s" % (seed_dir, f)
+            reach_trace = cfg_patch.get_blocks_with_tracer(self.project, cfg_r, self.binary, input_f)
+
+            for caller in unreachable_callers:
+                if caller not in reach_trace:
+                    continue
+                caller_idx = 0
+                callee_addresses = set()
+                for i in range(reach_trace.count(caller)):
+                    caller_idx = reach_trace.index(caller, caller_idx)
+                    caller_idx += 1
+                    callee = reach_trace[caller_idx]
+                    callee_addresses.add(callee.addr)
+                patch_edges[caller.addr] = callee_addresses
+
+        cfg_patch.patch_cfg_cg_with_caller_dict(self.project, cfg_r, cg_r, patch_edges)
+        return cfg_r, cg_r
 
