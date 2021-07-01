@@ -52,7 +52,8 @@ def uptrace_node(proj, cfg, t_node, pred_nodes, ret_func_addr=None, pre_pred=Non
         for next_node, jumpkind in cfg.model.get_predecessors_and_jumpkinds(pred):
             # Nodes inside this function, nothing special
             if jumpkind == 'Ijk_Boring':
-                if next_node not in new_predecessors and \
+                if next_node is not None and\
+                   next_node not in new_predecessors and \
                    next_node.block.addr not in pred_nodes:
                     new_predecessors.add(next_node)
             # Other function f returns here, indicates call by this function earlier
@@ -73,6 +74,8 @@ def uptrace_node(proj, cfg, t_node, pred_nodes, ret_func_addr=None, pre_pred=Non
             #    who is the caller)
             elif jumpkind == 'Ijk_Call':
                 if ret_func_addr is None:
+                    if next_node is None:
+                        continue
                     new_predecessors.add(next_node)
                 else:
                     continue
@@ -102,7 +105,7 @@ def downtrace_node(proj, cfg, t_node, succ_nodes, cg_pred_addr_pairs, ret_func_a
         for next_node, jumpkind in cfg.model.get_successors_and_jumpkinds(succ):
             # Nodes inside this function, nothing special
             if jumpkind == 'Ijk_Boring':
-                if next_node.block is None:
+                if next_node is None or next_node.block is None:
                     continue
                 if next_node not in new_successors and \
                    next_node.addr not in succ_nodes:
@@ -112,6 +115,8 @@ def downtrace_node(proj, cfg, t_node, succ_nodes, cg_pred_addr_pairs, ret_func_a
             #    who is the caller)
             elif jumpkind == 'Ijk_Ret':
                 if ret_func_addr is None:
+                    if next_node is None:
+                        continue
                     new_successors.add(next_node)
                     """
                     for (pred_addr, succ_addr) in cg_pred_addr_pairs:

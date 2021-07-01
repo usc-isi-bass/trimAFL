@@ -104,6 +104,8 @@ class TrimAFL(object):
                 for i in range(reach_trace.count(caller)):
                     caller_idx = reach_trace.index(caller, caller_idx)
                     caller_idx += 1
+                    if caller_idx >= len(reach_trace):
+                        continue
                     callee = reach_trace[caller_idx]
                     callee_addresses.add(callee.addr)
                 patch_edges[caller.addr] = callee_addresses

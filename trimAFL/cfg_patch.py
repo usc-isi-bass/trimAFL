@@ -119,6 +119,8 @@ def patch_cfg_cg_with_caller_dict(proj, cfg, cg, edge_addr_dict):
 
         for callee_addr in callee_addrs:
             callee = cfg.model.get_any_node(callee_addr)
+            if callee is None:
+                continue
             _add_callee(proj, cfg, cg, caller, callee, ret_node)
 
 
