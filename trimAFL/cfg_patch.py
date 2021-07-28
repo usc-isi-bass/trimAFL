@@ -103,7 +103,12 @@ def find_reachable_unresolved_callers(proj, cfg, cg):
 def patch_cfg_cg_with_caller_dict(proj, cfg, cg, edge_addr_dict):
     for caller_addr, callee_addrs in edge_addr_dict.items():
         caller = cfg.model.get_any_node(caller_addr)
-        ret_node = search_node_by_addr(cfg, caller.block.instruction_addrs[-1]+5)
+        if caller is None:
+            continue
+        ret_node = search_next_node(cfg, caller)
+        if ret_node is None:
+            continue
+
         # Remove UnresolvableCallTarget, if still exists
         unresolve_node = None
         for node in cfg.model.get_successors(caller):
