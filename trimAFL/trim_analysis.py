@@ -282,13 +282,40 @@ def _insert_interrupt(r2, addr, cnt):
     if to_pend < 0:
         return cnt
 
-    rewrite0 = "w0 %s" % size
-    r2.cmd(rewrite0)
+    re_hex = "cd03"
+    while to_pend > 0:
+        if to_pend == 1:
+            re_hex += "90"
+            break
+        elif to_pend == 2:
+            re_hex += "6690"
+            break
+        elif to_pend == 3:
+            re_hex += "0f1f00"
+            break
+        elif to_pend == 4:
+            re_hex += "0f1f4000"
+            break
+        elif to_pend == 5:
+            re_hex += "0f1f440000"
+            break
+        elif to_pend == 6:
+            re_hex += "660f1f440000"
+            break
+        elif to_pend == 7:
+            re_hex += "0f1f8000000000"
+            break
+        elif to_pend == 8:
+            re_hex += "0f1f840000000000"
+            break
+        elif to_pend == 9:
+            re_hex += "660f1f840000000000"
+            break
+        else:
+            re_hex += "660f1f840000000000"
+            to_pend -= 9
 
-    rewrite = "wa int 0x3"
-    for i in range(to_pend):
-        rewrite += ";nop"
-
+    rewrite = "wx " + re_hex
     l.info("Rewriting %s" % hex(addr))
     r2.cmd(rewrite)
     cnt += 1 
