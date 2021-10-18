@@ -4,21 +4,27 @@ from .utils import *
 l = logging.getLogger('trimAFL.analyses')
 
 FuncName_Blacklist = set(
-    ['frame_dummy', 
-     '__do_global_dtors_aux', 
-     'register_tm_clones', 
-     'deregister_tm_clones', 
-     '_start', 
-     '__cxa_finalize', 
+    ['frame_dummy',
+     '__do_global_dtors_aux',
+     '_dl_relocate_static_pie',
+     'register_tm_clones',
+     'deregister_tm_clones',
+     '_start',
+     '__cxa_finalize',
      '__stack_chk_fail',
-     '_init', 
-     '__libc_start_main', 
-     '__libc_csu_init'
+     '_init',
+     '__libc_start_main',
+     '__libc_csu_init',
+     '_fini'
     ])
 
 NOTRIM_NODES = [
     "magma_log",
-    "__afl"
+    "__afl",
+    "LLVM",
+    "__sanitizer",
+    "_GLOBAL__",
+    "__clang"
 ]
 
 
