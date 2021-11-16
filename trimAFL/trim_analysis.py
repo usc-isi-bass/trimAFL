@@ -18,6 +18,17 @@ FuncName_Blacklist = set(
      '_fini'
     ])
 
+"""
+NOTRIM_NODES = [
+    "magma_log",
+    "__afl",
+    "LLVM",
+    "__sanitizer",
+    "_GLOBAL__",
+    "__clang",
+    "png_struct_def"
+]
+"""
 NOTRIM_NODES = [
     "magma_log",
     "__afl",
@@ -26,7 +37,6 @@ NOTRIM_NODES = [
     "_GLOBAL__",
     "__clang"
 ]
-
 
 def uptrace_node(proj, cfg, t_node, pred_nodes, ret_func_addr=None, pre_pred=None):
     l.debug("Trace up %s\tfrom %s" % (t_node, pre_pred))
@@ -258,6 +268,7 @@ def _get_trim_nodes(target_nodes, pred_nodes, succ_nodes):
         # Ignore these blocks to make AFL run
         if node.name is None or \
            node.block is None or \
+           len(node.name) == 0 or \
            _name_no_trim(node.name):
             continue
         if addr not in pred_nodes and \
